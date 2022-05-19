@@ -1,6 +1,6 @@
-from importlib.metadata import files
 import subprocess
 import time
+
 
 #opens Audacity and waits a few seconds so audcacitypipetest is happy.
 #be sure to enable Preferences/Modules/mod-script-pipe in Audacity!
@@ -16,17 +16,42 @@ import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why thi
 import os
 import shutil
 import ftplib
+from datetime import date
 
 
+ftpServer = "ftp.server.com"
+ftpUsername = "ftp_username"
+ftpPassword = "ftp_password"
+
+#Base path this all lives on
 HomeDir = os.path.expanduser('~/Desktop/')
+
 # PATH is where FTP'd files should go
-PATH = HomeDir + '/FTP'
+PATH = HomeDir + '/FTP/'
 # Image location for ID3 tag
 imagefile = HomeDir + "ncmp3tag.png"
 audacity_output_folder = HomeDir + "/macro-output/"
 
-#TODO: Open FTP server
-#TODO: Get the right files
+# Open FTP server
+ftp = ftplib.FTP(ftpServer)
+ftp.login(ftpUsername, ftpPassword)
+
+ftpDir = ftp.pwd()
+
+#Get the latest file off FTP server
+ftpFiles = list(ftp.mlsd())
+ftpFiles.sort(key = lambda file: file[1]['modify'], reverse = True)
+newestFile = ftpFiles[0][0]
+
+#Download the file
+os.chdir(PATH)
+
+while not os.path.isfile(PATH + newestFile + ".mp3"):
+    ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
+
+
+ftp.quit()
+
 
 # Audacity processing
 def run_commands(INFILE):
