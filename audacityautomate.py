@@ -24,13 +24,15 @@ ftpUsername = "ftp_username"
 ftpPassword = "ftp_password"
 
 #Base path this all lives on
-HomeDir = os.path.expanduser('~/Desktop/')
+HomeDir = os.path.expanduser('~/Desktop')
 
-# PATH is where FTP'd files should go
-PATH = HomeDir + '/FTP/'
+# PATH is where downloaded files should go
+PATH = HomeDir + '/FTP'
 # Image location for ID3 tag
-imagefile = HomeDir + "ncmp3tag.png"
-audacity_output_folder = HomeDir + "/macro-output/"
+imagefile = HomeDir + '/ncmp3tag.png'
+audacity_output_folder = HomeDir + '/macro-output'
+
+
 
 # Open FTP server
 ftp = ftplib.FTP(ftpServer)
@@ -43,21 +45,20 @@ ftpFiles = list(ftp.mlsd())
 ftpFiles.sort(key = lambda file: file[1]['modify'], reverse = True)
 newestFile = ftpFiles[0][0]
 
-#Download the file
+#Download the file to PATH folder
 os.chdir(PATH)
 
-while not os.path.isfile(PATH + newestFile + ".mp3"):
+while not os.path.isfile(PATH + "/" + newestFile):
     ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
 
-
-ftp.quit()
+ftp.quit()    
 
 
 # Audacity processing
 def run_commands(INFILE):
     filename = ('"' + str(os.path.join(PATH, INFILE + '.mp3')) + '"')
     pipe_test.do_command(f"Import2: Filename={filename}") 
-    pipe_test.do_command('Macro_cleanfile:')
+    pipe_test.do_command('Macro_cleanfileFTP:')
 
 
 # Platform specific file name and file path.
@@ -68,8 +69,8 @@ while not os.path.isdir(PATH):
 
 
 #Get files from folder
-file = os.listdir(PATH)
-for f in file:
+localFile = os.listdir(PATH)
+for f in localFile:
     if f.endswith('mp3'):
         INFILE = f
         while not os.path.isfile(os.path.join(PATH, INFILE)):
