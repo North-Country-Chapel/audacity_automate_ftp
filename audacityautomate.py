@@ -26,10 +26,11 @@ ftpPassword = "ftp_password"
 #Base path this all lives on
 HomeDir = os.path.expanduser('~/Desktop')
 
-# PATH is where downloaded files should go
+# Where downloaded files should go
 PATH = HomeDir + '/FTP'
 # Image location for ID3 tag
 imagefile = HomeDir + '/ncmp3tag.png'
+# Folder that audacity macros output to
 audacity_output_folder = HomeDir + '/macro-output'
 
 
@@ -50,8 +51,6 @@ os.chdir(PATH)
 
 while not os.path.isfile(PATH + "/" + newestFile):
     ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
-
-ftp.quit()    
 
 
 # Audacity processing
@@ -95,7 +94,7 @@ for f in localFile:
             audiofile.tag.comments.remove(comment.description)
     
         audiofile.tag.save()      
-
+        
         year = audiofile.tag.recording_date
         comment = u"© Apply Within"
         albumartist = audiofile.tag.album_artist
@@ -119,25 +118,21 @@ for f in localFile:
 subprocess.call(["taskkill","/F","/IM","Audacity.exe"])
 os.kill
 
-# Go to macro_output folder
-
+# Go to Audacity output folder
 os.chdir(audacity_output_folder)
 
-
-# FTP login
-ftp = ftplib.FTP(ftpServer)
-ftp.login(ftpUsername, ftpPassword)
-
-ftpDir = ftp.pwd()
-
-#Upload files
-
-os.chdir(audacity_output_folder)
+# Upload any mp3s in that folder. If no errors are thrown, delete files so they don't get processed next time.
 for f in os.listdir(audacity_output_folder):
     if f.endswith(".mp3"):
         newestFile = f
-        open(audacity_output_folder + "/" + newestFile, "rb")
-        ftp.storbinary("STOR " + newestFile, open(newestFile, "rb", 1024))
+        try:
+            open(audacity_output_folder + "/" + newestFile, "rb")
+            ftp.storbinary("STOR " + newestFile, open(newestFile, "rb", 1024))
+        except: 
+            print("FTP failed")   
+        else:    
+            os.remove(audacity_output_folder + "/" + newestFile)
+            os.remove(PATH + "/" + newestFile)
     
 
 ftp.quit()    
