@@ -119,6 +119,25 @@ for f in localFile:
 subprocess.call(["taskkill","/F","/IM","Audacity.exe"])
 os.kill
 
-#TODO: go to macro_output folder
-#TODO: FTP upload and overwrite with new files
+# Go to macro_output folder
 
+os.chdir(audacity_output_folder)
+
+
+# FTP login
+ftp = ftplib.FTP(ftpServer)
+ftp.login(ftpUsername, ftpPassword)
+
+ftpDir = ftp.pwd()
+
+#Upload files
+
+os.chdir(audacity_output_folder)
+for f in os.listdir(audacity_output_folder):
+    if f.endswith(".mp3"):
+        newestFile = f
+        open(audacity_output_folder + "/" + newestFile, "rb")
+        ftp.storbinary("STOR " + newestFile, open(newestFile, "rb", 1024))
+    
+
+ftp.quit()    
