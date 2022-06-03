@@ -1,6 +1,6 @@
 # audacity_automate_ftp
 
-Using an existing Audacity macro, this script downloads the newest file on a FTP site, opens it in Audacity, reads in the mp3, runs the macro, fixes the mangled ID3 tags, and uploads/overwrites the original file on the FTP site.
+Using an existing Audacity macro, this script downloads the newest file on a FTP site, opens it in Audacity, runs the macro, fixes the mangled ID3 tags, and uploads/overwrites the original file on the FTP site.
 
 In Audacity, be sure to enable Preferences/Modules/mod-script-pipe and set an output directory in Preferences/Directories/Macro Output.
 
