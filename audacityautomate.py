@@ -16,7 +16,7 @@ import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why thi
 import os
 import shutil
 import ftplib
-from datetime import date
+#from datetime import date
 
 
 ftpServer = "ftp.server.com"
@@ -32,7 +32,7 @@ PATH = HomeDir + '/FTP'
 imagefile = HomeDir + '/ncmp3tag.png'
 # Folder that audacity macros output to
 audacity_output_folder = HomeDir + '/macro-output'
-
+count = 0
 
 
 # Open FTP server
@@ -44,13 +44,17 @@ ftpDir = ftp.pwd()
 #Get the latest file off FTP server
 ftpFiles = list(ftp.mlsd())
 ftpFiles.sort(key = lambda file: file[1]['modify'], reverse = True)
-newestFile = ftpFiles[0][0]
+
+newestFile = ftpFiles[count][0]
+# Make sure newestFile is an mp3
+while not newestFile.endswith('mp3') and count < len(ftpFiles):
+    count += 1
+    newestFile = ftpFiles[count][0]
 
 #Download the file to PATH folder
 os.chdir(PATH)
 
-while not os.path.isfile(PATH + "/" + newestFile):
-    ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
+ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
 
 
 # Audacity processing
