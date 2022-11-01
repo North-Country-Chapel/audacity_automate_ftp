@@ -14,17 +14,17 @@ time.sleep(5)
 import audacitypipetest as pipe_test
 import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why this is all necessary
 import os
-import shutil
+#import shutil
 import ftplib
 #from datetime import date
 
 
-ftpServer = "ftp.server.com"
-ftpUsername = "ftp_username"
-ftpPassword = "ftp_password"
+ftpServer = os.environ.get('FTP_MP3_SERVER')
+ftpUsername = os.environ.get('FTP_MP3_USERNAME')
+ftpPassword = os.environ.get('FTP_MP3_PASSWORD')
 
 #Base path this all lives on
-HomeDir = os.path.expanduser('~/Desktop')
+HomeDir = os.path.expanduser('~/Documents')
 
 # Where downloaded files should go
 PATH = HomeDir + '/FTP'
@@ -61,7 +61,7 @@ ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
 def run_commands(INFILE):
     filename = ('"' + str(os.path.join(PATH, INFILE + '.mp3')) + '"')
     pipe_test.do_command(f"Import2: Filename={filename}") 
-    pipe_test.do_command('Macro_cleanfileFTP:')
+    pipe_test.do_command('Macro_cleanfile:')
 
 
 # Platform specific file name and file path.
