@@ -1,5 +1,6 @@
 import subprocess
 import time
+import os
 
 
 #opens Audacity and waits a few seconds so audcacitypipetest is happy.
@@ -10,13 +11,13 @@ time.sleep(5)
 
 
 
-
-import audacitypipetest as pipe_test
+import pipeclient
+#import audacitypipetest as pipe_test
 import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why this is all necessary
 import os
-#import shutil
+import random
 import ftplib
-#from datetime import date
+
 
 
 ftpServer = os.environ.get('FTP_MP3_SERVER')
@@ -32,6 +33,11 @@ PATH = HomeDir + '/FTP'
 imagefile = HomeDir + '/ncmp3tag.png'
 # Folder that audacity macros output to
 audacity_output_folder = HomeDir + '/macro-output'
+client = pipeclient.PipeClient()
+
+# Create a random filename for the Exit2 workaround
+rnum = random.randint(1000, 9999)
+savename = PATH + "/" + str(rnum) + '.aup3'
 count = 0
 
 
@@ -46,6 +52,7 @@ ftpFiles = list(ftp.mlsd())
 ftpFiles.sort(key = lambda file: file[1]['modify'], reverse = True)
 
 newestFile = ftpFiles[count][0]
+
 # Make sure newestFile is an mp3
 while not newestFile.endswith('mp3') and count < len(ftpFiles):
     count += 1
@@ -60,15 +67,17 @@ ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
 # Audacity processing
 def run_commands(INFILE):
     filename = ('"' + str(os.path.join(PATH, INFILE + '.mp3')) + '"')
-    pipe_test.do_command(f"Import2: Filename={filename}") 
-    pipe_test.do_command('Macro_cleanfile:')
+    
+    client.write(f"Import2: Filename={filename}", timer=True)
+    client.write("Macro_cleanfile:")
 
+    # This is a workaround until Exit2 is added to Audacity. 
+    # See https://forum.audacityteam.org/viewtopic.php?p=440395#p440395
+    client.write("NewMonoTrack:")
+    client.write("Macro_exitworkaround:")
+    client.write(f'SaveProject2:AddToHistory="0" Filename="{savename}"')
+    client.write("Exit:")
 
-# Platform specific file name and file path.
-while not os.path.isdir(PATH):
-    PATH = os.path.realpath(input('Path to test folder: '))
-    if not os.path.isdir(PATH):
-        print('Invalid path. Try again.')
 
 
 #Get files from folder
@@ -76,14 +85,6 @@ localFile = os.listdir(PATH)
 for f in localFile:
     if f.endswith('mp3'):
         INFILE = f
-        while not os.path.isfile(os.path.join(PATH, INFILE)):
-            INFILE = input('Name of input mp3 file: ')
-            INFILE = os.path.splitext(INFILE)[0] + '.mp3'
-            if not os.path.isfile(os.path.join(PATH, INFILE)):
-                print(f"{os.path.join(PATH, INFILE)} not found. Try again.")
-            else:
-                print(f"Input file: {os.path.join(PATH, INFILE)}")
-        # Remove file extension.
         INFILE = os.path.splitext(INFILE)[0]
     
         # Get ID3 info
@@ -117,10 +118,10 @@ for f in localFile:
 
         audiofile.tag.save()
 
+# It all moves too fast for os.remove if you don't wait
+time.sleep(10)
+os.remove(savename)
 
-# Close audacity
-subprocess.call(["taskkill","/F","/IM","Audacity.exe"])
-os.kill
 
 # Go to Audacity output folder
 os.chdir(audacity_output_folder)
