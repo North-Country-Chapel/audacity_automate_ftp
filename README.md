@@ -4,7 +4,7 @@ Using an existing Audacity macro, this script downloads the newest file on a FTP
 
 In Audacity, be sure to enable Preferences/Modules/mod-script-pipe and set an output directory in Preferences/Directories/Macro Output.
 
-You must have the audacitypipetest.py file so it can be imported.
+You must have the pipeclient.py file so it can be imported.
 
 Relies heavily on work by:
 
