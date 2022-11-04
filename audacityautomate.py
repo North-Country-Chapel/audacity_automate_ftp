@@ -79,7 +79,6 @@ def run_commands(INFILE):
     client.write("Exit:")
 
 
-
 #Get files from folder
 localFile = os.listdir(PATH)
 for f in localFile:
@@ -107,6 +106,10 @@ for f in localFile:
 
         # Apply the macro()
         run_commands(INFILE)  
+
+        # Workaround python moving on before Audacity finishes processing
+        # TODO: loop to check on macro-output file creation
+        time.sleep(150)
 
         # Save ID3 tag info to the cleaned file 
         audiofile = eyed3.load(os.path.join(audacity_output_folder, INFILE + '.mp3'))
