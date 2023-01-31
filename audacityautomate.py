@@ -109,7 +109,7 @@ for f in localFile:
 
         # Workaround python moving on before Audacity finishes processing
         # TODO: loop to check on macro-output file creation
-        time.sleep(150)
+        time.sleep(300)
 
         # Save ID3 tag info to the cleaned file 
         audiofile = eyed3.load(os.path.join(audacity_output_folder, INFILE + '.mp3'))
