@@ -7,6 +7,7 @@ import os
 #be sure to enable Preferences/Modules/mod-script-pipe in Audacity!
 
 subprocess.Popen('C:\Program Files\Audacity\Audacity.exe')
+# subprocess.Popen('/bin/audacity') //linux yo
 time.sleep(5)
 
 
