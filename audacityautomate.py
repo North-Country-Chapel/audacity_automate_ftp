@@ -6,8 +6,8 @@ import os
 #opens Audacity and waits a few seconds so audcacitypipetest is happy.
 #be sure to enable Preferences/Modules/mod-script-pipe in Audacity!
 
-subprocess.Popen('C:\Program Files\Audacity\Audacity.exe')
-# subprocess.Popen('/bin/audacity') //linux yo
+subprocess.Popen('/bin/audacity')
+# subprocess.Popen('C:\Program Files\Audacity\Audacity.exe') //windows yo
 time.sleep(5)
 
 
@@ -33,7 +33,7 @@ PATH = HomeDir + '/FTP'
 # Image location for ID3 tag
 imagefile = HomeDir + '/ncmp3tag.png'
 # Folder that audacity macros output to
-audacity_output_folder = HomeDir + '/macro-output'
+audacity_output_folder = HomeDir + '/FTP/macro-output'
 client = pipeclient.PipeClient()
 
 # Create a random filename for the Exit2 workaround
@@ -110,7 +110,7 @@ for f in localFile:
 
         # Workaround python moving on before Audacity finishes processing
         # TODO: loop to check on macro-output file creation
-        time.sleep(300)
+        time.sleep(420)
 
         # Save ID3 tag info to the cleaned file 
         audiofile = eyed3.load(os.path.join(audacity_output_folder, INFILE + '.mp3'))
@@ -123,7 +123,7 @@ for f in localFile:
         audiofile.tag.save()
 
 # It all moves too fast for os.remove if you don't wait
-time.sleep(10)
+time.sleep(30)
 os.remove(savename)
 
 
