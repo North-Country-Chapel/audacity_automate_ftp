@@ -1,25 +1,11 @@
 import subprocess
 import time
 import os
-
-
-#opens Audacity and waits a few seconds so audcacitypipetest is happy.
-#be sure to enable Preferences/Modules/mod-script-pipe in Audacity!
-
-subprocess.Popen('/bin/audacity')
-# subprocess.Popen('C:\Program Files\Audacity\Audacity.exe') //windows yo
-time.sleep(5)
-
-
-
-import pipeclient
-#import audacitypipetest as pipe_test
 import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why this is all necessary
-import os
 import random
 import ftplib
-
-
+import logging
+from datetime import datetime
 
 ftpServer = os.environ.get('FTP_MP3_SERVER')
 ftpUsername = os.environ.get('FTP_MP3_USERNAME')
@@ -28,27 +14,40 @@ ftpPassword = os.environ.get('FTP_MP3_PASSWORD')
 #Base path this all lives on
 HomeDir = os.path.expanduser('~/Documents')
 
+# Configure logging
+log_file = os.path.join(HomeDir, 'log.txt')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()  # Still show in console if needed
+    ]
+)
+
+logger = logging.getLogger(__name__)
+
 # Where downloaded files should go
 PATH = HomeDir + '/FTP'
 # Image location for ID3 tag
 imagefile = HomeDir + '/ncmp3tag.png'
-# Folder that audacity macros output to
-audacity_output_folder = HomeDir + '/FTP/macro-output'
-client = pipeclient.PipeClient()
+# Folder that processed files output to (was audacity_output_folder)
+output_folder = HomeDir + '/FTP/macro-output'
 
-# Create a random filename for the Exit2 workaround
-rnum = random.randint(1000, 9999)
-savename = PATH + "/" + str(rnum) + '.aup3'
+logger.info("Starting audio processing script (Linux version)")
+
 count = 0
 
-
 # Open FTP server
+logger.info("Connecting to FTP server...")
 ftp = ftplib.FTP(ftpServer)
 ftp.login(ftpUsername, ftpPassword)
+logger.info("Successfully connected to FTP server")
 
 ftpDir = ftp.pwd()
 
 #Get the latest file off FTP server
+logger.info("Retrieving file list from FTP server...")
 ftpFiles = list(ftp.mlsd())
 ftpFiles.sort(key = lambda file: file[1]['modify'], reverse = True)
 
@@ -59,89 +58,107 @@ while not newestFile.endswith('mp3') and count < len(ftpFiles):
     count += 1
     newestFile = ftpFiles[count][0]
 
+logger.info(f"Found newest MP3 file: {newestFile}")
+
 #Download the file to PATH folder
 os.chdir(PATH)
-
+logger.info(f"Downloading {newestFile}...")
 ftp.retrbinary("RETR " + newestFile, open(newestFile, 'wb').write)
+logger.info(f"Successfully downloaded {newestFile}")
 
-
-# Audacity processing
-def run_commands(INFILE):
-    filename = ('"' + str(os.path.join(PATH, INFILE + '.mp3')) + '"')
+# FFmpeg processing function (replaces Audacity)
+def process_audio_ffmpeg(input_file, output_file):
+    """Process audio file with FFmpeg: normalize and convert to 64k MP3"""
+    cmd = [
+        'ffmpeg',
+        '-i', input_file,
+        '-filter:a', 'loudnorm=I=-16:TP=-1.5:LRA=7',
+        '-codec:a', 'libmp3lame',
+        '-b:a', '64k',
+        '-y',  # Overwrite output file if it exists
+        output_file
+    ]
     
-    client.write(f"Import2: Filename={filename}", timer=True)
-    client.write("Macro_cleanfile:")
+    try:
+        subprocess.run(cmd, check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"FFmpeg processing failed: {e}")
+        return False
 
-    # This is a workaround until Exit2 is added to Audacity. 
-    # See https://forum.audacityteam.org/viewtopic.php?p=440395#p440395
-    client.write("NewMonoTrack:")
-    client.write("Macro_exitworkaround:")
-    client.write(f'SaveProject2:AddToHistory="0" Filename="{savename}"')
-    client.write("Exit:")
-
-
-#Get files from folder
+#Get files from folder and process them
+logger.info("Processing downloaded files...")
 localFile = os.listdir(PATH)
 for f in localFile:
     if f.endswith('mp3'):
         INFILE = f
-        INFILE = os.path.splitext(INFILE)[0]
+        INFILE_NO_EXT = os.path.splitext(INFILE)[0]
+        
+        input_path = os.path.join(PATH, INFILE)
+        output_path = os.path.join(output_folder, INFILE)  # Keep same filename
+        
+        logger.info(f"Processing file: {INFILE}")
     
-        # Get ID3 info
-        audiofile = eyed3.load(os.path.join(PATH, INFILE + '.mp3'))
+        # Get ID3 info from original file
+        audiofile = eyed3.load(input_path)
         if (audiofile.tag == None):
             audiofile.initTag()
 
         # Delete comments because they double up
         # https://github.com/nicfit/eyeD3/issues/111
         for comment in audiofile.tag.comments:
-
             audiofile.tag.comments.remove(comment.description)
     
         audiofile.tag.save()      
         
+        # Store metadata for later
         year = audiofile.tag.recording_date
         comment = u"© Apply Within"
         albumartist = audiofile.tag.album_artist
         image = open(imagefile,"rb").read()
 
-        # Apply the macro()
-        run_commands(INFILE)  
+        # Process with FFmpeg instead of Audacity
+        logger.info(f"Starting FFmpeg processing for {INFILE}...")
+        success = process_audio_ffmpeg(input_path, output_path)
+        
+        if success:
+            logger.info(f"Successfully processed {INFILE}")
+            
+            # Apply ID3 tag info to the processed file 
+            processed_audiofile = eyed3.load(output_path)
+            if processed_audiofile.tag is None:
+                processed_audiofile.initTag()
+       
+            processed_audiofile.tag.recording_date = year
+            processed_audiofile.tag.comments.set(comment) 
+            processed_audiofile.tag.album_artist = albumartist
+            processed_audiofile.tag.images.set(3, image, "image/png", u"NCC logo")
 
-        # Workaround python moving on before Audacity finishes processing
-        # TODO: loop to check on macro-output file creation
-        time.sleep(420)
+            processed_audiofile.tag.save()
+            logger.info(f"Applied metadata to {INFILE}")
+        else:
+            logger.error(f"Failed to process {INFILE}")
 
-        # Save ID3 tag info to the cleaned file 
-        audiofile = eyed3.load(os.path.join(audacity_output_folder, INFILE + '.mp3'))
-   
-        audiofile.tag.recording_date = year
-        audiofile.tag.comments.set(comment) 
-        audiofile.tag.album_artist = albumartist
-        audiofile.tag.images.set(3,image,"image/png",u"NCC logo") #https://tuxpool.blogspot.com/2013/02/how-to-store-images-in-mp3-files-using.html
-
-        audiofile.tag.save()
-
-# It all moves too fast for os.remove if you don't wait
-time.sleep(30)
-os.remove(savename)
-
-
-# Go to Audacity output folder
-os.chdir(audacity_output_folder)
+# Go to output folder
+os.chdir(output_folder)
 
 # Upload any mp3s in that folder. If no errors are thrown, delete files so they don't get processed next time.
-for f in os.listdir(audacity_output_folder):
+logger.info("Uploading processed files to FTP server...")
+for f in os.listdir(output_folder):
     if f.endswith(".mp3"):
-        newestFile = f
+        processed_file = f
+        logger.info(f"Uploading {processed_file}...")
         try:
-            open(audacity_output_folder + "/" + newestFile, "rb")
-            ftp.storbinary("STOR " + newestFile, open(newestFile, "rb", 1024))
-        except: 
-            print("FTP failed")   
+            with open(os.path.join(output_folder, processed_file), "rb") as file:
+                ftp.storbinary("STOR " + processed_file, file)
+            logger.info(f"Successfully uploaded {processed_file}")
+        except Exception as e: 
+            logger.error(f"FTP upload failed for {processed_file}: {e}")   
         else:    
-            os.remove(audacity_output_folder + "/" + newestFile)
-            os.remove(PATH + "/" + newestFile)
+            # Clean up files after successful upload
+            os.remove(os.path.join(output_folder, processed_file))
+            os.remove(os.path.join(PATH, processed_file))
+            logger.info(f"Cleaned up local files for {processed_file}")
     
-
-ftp.quit()    
+ftp.quit()
+logger.info("Audio processing script completed successfully")
