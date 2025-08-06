@@ -5,6 +5,8 @@ import eyed3  #see: https://github.com/audacity/audacity/issues/1696 for why thi
 import random
 import ftplib
 import logging
+import logging.config
+from logging_config import setup_logging
 from datetime import datetime
 
 ftpServer = os.environ.get('FTP_MP3_SERVER')
@@ -15,17 +17,10 @@ ftpPassword = os.environ.get('FTP_MP3_PASSWORD')
 HomeDir = os.path.expanduser('~/Documents')
 
 # Configure logging
-log_file = os.path.join(HomeDir, 'log.txt')
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()  # Still show in console if needed
-    ]
+logger = setup_logging(
+    config_path='logging_config.json',
+    fluentd_host='10.10.0.81'
 )
-
-logger = logging.getLogger(__name__)
 
 # Where downloaded files should go
 PATH = HomeDir + '/FTP'
